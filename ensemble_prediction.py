@@ -99,10 +99,13 @@ class EnsembleRollingWindowPredictor:
 
         Returns:
             dict containing:
+                - 'windows': List of window sequences
                 - 'position_probs': List of (position, probability) tuples
+                - 'window_probs': List of (window_sequence, probability) tuples
                 - 'avg_probability': Average probability across all windows
                 - 'max_probability': Maximum probability across all windows
                 - 'sequence_length': Length of the input sequence
+                - 'num_windows': Number of windows
         """
         sequence_length = len(sequence)
 
@@ -110,14 +113,16 @@ class EnsembleRollingWindowPredictor:
             # If sequence is shorter than window, predict on the entire sequence
             prob = self.predict_ensemble([sequence])[0]
             return {
-            
+                'windows': [sequence],  # ✅ Added missing key
                 'position_probs': [(0, prob)],
+                'window_probs': [(sequence, prob)],  # ✅ Added missing key - (subsequence, probability)
                 'avg_probability': prob,
                 'max_probability': prob,
-                'sequence_length': sequence_length
+                'sequence_length': sequence_length,
+                'num_windows': 1  # ✅ Added missing key
             }
 
-        # Generate windows - slide one position at a time
+    
         windows = []
         positions = []
 
@@ -135,13 +140,11 @@ class EnsembleRollingWindowPredictor:
         max_probability = np.max(window_probs)
 
         return {
-        'windows': windows,
-        'position_probs': position_probs,
-        'window_probs': list(zip(windows, window_probs)),  # Subsequence and its probability
-        'avg_probability': avg_probability,
-        'max_probability': max_probability,
-        'sequence_length': sequence_length,
-        'num_windows': len(windows)
-    }
-
-
+                'windows': windows,
+                'position_probs': position_probs,
+                'window_probs': list(zip(windows, window_probs)),  
+                'avg_probability': avg_probability,
+                'max_probability': max_probability,
+                'sequence_length': sequence_length,
+                'num_windows': len(windows)
+            }
