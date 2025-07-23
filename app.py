@@ -45,8 +45,8 @@ with left_col:
 # Load models and predictor (cached to avoid reloading)
 @st.cache_resource(show_spinner=False)
 def get_predictor():
-    models, calibrators = load_models_and_calibrators()
-    return EnsembleRollingWindowPredictor(models, calibrators)
+    models, calibrators, esm2_path = load_models_and_calibrators()
+    return EnsembleRollingWindowPredictor(models, calibrators, esm2_150M_path=esm2_path)
 
 predictor = get_predictor()
 start_time = time.time()

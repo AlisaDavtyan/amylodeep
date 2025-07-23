@@ -38,7 +38,7 @@ def load_models_and_calibrators():
         calibrators["platt_unirep"] = pickle.load(f)
 
 
-    return models, calibrators
+    return models, calibrators, model_path_1
 
 
 def predict_ensemble_rolling(sequence: str, window_size: int = 6):

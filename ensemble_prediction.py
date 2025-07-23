@@ -7,7 +7,7 @@ import pickle
 
 
 class EnsembleRollingWindowPredictor:
-    def __init__(self, models_dict, calibrators_dict=None):
+    def __init__(self, models_dict, calibrators_dict=None,esm2_150M_path=None):
         """
         Initialize the ensemble predictor with all 5 models and calibrators.
 
@@ -20,7 +20,7 @@ class EnsembleRollingWindowPredictor:
         self.calibrators = calibrators_dict or {}
 
         # Initialize tokenizers
-        self.tokenizer_1 = AutoTokenizer.from_pretrained("../models/final_esm2_150M_checkpoint_100_epochs")
+        self.tokenizer_1 = AutoTokenizer.from_pretrained(esm2_150M_path)
 
 
     def _predict_model_1(self, sequences):
