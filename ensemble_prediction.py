@@ -5,9 +5,8 @@ from transformers import AutoTokenizer, AutoModel
 import jax_unirep
 import pickle
 
-
 class EnsembleRollingWindowPredictor:
-    def __init__(self, models_dict, calibrators_dict=None, esm2_150M_path=None):
+    def __init__(self, models_dict, calibrators_dict=None, tokenizer=None):
         """
         Initialize the ensemble predictor with all 5 models and calibrators.
 
@@ -19,8 +18,8 @@ class EnsembleRollingWindowPredictor:
         self.models = models_dict
         self.calibrators = calibrators_dict or {}
 
-        # Initialize tokenizers
-        self.tokenizer_1 = AutoTokenizer.from_pretrained(esm2_150M_path)
+        self.tokenizer_1 = tokenizer
+    
 
 
     def _predict_model_1(self, sequences):
@@ -57,7 +56,7 @@ class EnsembleRollingWindowPredictor:
 
         probs_np = probs.numpy()
 
-        # Apply calibration if available
+        
         if 'platt_unirep' in self.calibrators:
             probs_np = self.calibrators['platt_unirep'].predict_proba(probs_np.reshape(-1, 1))[:, 1]
 

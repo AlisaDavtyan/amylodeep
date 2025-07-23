@@ -83,8 +83,8 @@ with left_col:
 # Load predictor
 @st.cache_resource(show_spinner=False)
 def get_predictor():
-    models, calibrators, model_path_1 = load_models_and_calibrators()
-    return EnsembleRollingWindowPredictor(models, calibrators, esm2_150M_path= model_path_1)
+    models, calibrators, tokenizer_1 = load_models_and_calibrators()
+    return EnsembleRollingWindowPredictor(models, calibrators, tokenizer= tokenizer_1)
 
 predictor = get_predictor()
 
@@ -124,7 +124,7 @@ if submit and sequence_input:
 
             st.markdown("<h5 style='text-align: center;'>Position-wise Probabilities</h5>", unsafe_allow_html=True)
             df = pd.DataFrame({
-                "start": [pos for pos, _ in result["position_probs"]],
+                # "start": [pos for pos, _ in result["position_probs"]],
                 "sequence": result["windows"],
                 "probability": [p for _, p in result["position_probs"]]
             })
