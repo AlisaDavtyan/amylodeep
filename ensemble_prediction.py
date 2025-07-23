@@ -7,7 +7,7 @@ import pickle
 
 
 class EnsembleRollingWindowPredictor:
-    def __init__(self, models_dict, calibrators_dict=None,esm2_150M_path=None):
+    def __init__(self, models_dict, calibrators_dict=None, esm2_150M_path=None):
         """
         Initialize the ensemble predictor with all 5 models and calibrators.
 

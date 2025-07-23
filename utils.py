@@ -31,14 +31,14 @@ def load_models_and_calibrators():
     # Calibrators
     artifact_3 = api.artifact('biophysarm-l-k-jordan-associates/amylodeep/platt_unirep:v0')
     model_path_3 = artifact_3.download()
-    model_path_3 = os.path.join(model_path_3, "platt_unirep.pkl")
+    calibrator_path = os.path.join(model_path_3, "platt_unirep.pkl")
 
     calibrators = {}
-    with open(model_path_3, "rb") as f:
+    with open(calibrator_path, "rb") as f:
         calibrators["platt_unirep"] = pickle.load(f)
 
 
-    return models, calibrators, model_path_1
+    return models, calibrators
 
 
 def predict_ensemble_rolling(sequence: str, window_size: int = 6):
@@ -46,6 +46,6 @@ def predict_ensemble_rolling(sequence: str, window_size: int = 6):
     Run ensemble prediction with rolling window over a single sequence.
     Returns dictionary with average/max probs and position-wise scores.
     """
-    models, calibrators ,esm2_150M_path = load_models_and_calibrators()
-    predictor = EnsembleRollingWindowPredictor(models, calibrators,esm2_150M_path)
+    models, calibrators , model_path_1 = load_models_and_calibrators()
+    predictor = EnsembleRollingWindowPredictor(models, calibrators,model_path_1)
     return predictor.rolling_window_prediction(sequence, window_size)
