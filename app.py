@@ -17,25 +17,23 @@ st.markdown(
             padding-bottom: 0px;
             max-width: 100%;
         }
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        footer > div {display: none !important;}
+        header {visibility: hidden !important;}
+        .css-1v0mbdj {display: none !important;}
+        .css-fk4es0 {display: none !important;}
+        .css-1ydp3hp {display: none !important;}
+        
+        /* Additional selectors for deployment */
+        .viewerBadge_container__1QSob {display: none !important;}
+        .styles_viewerBadge__1yB5_ {display: none !important;}
+        .viewerBadge_link__1S137 {display: none !important;}
+        .viewerBadge_text__1JaDK {display: none !important;}
     </style>
-    
-    <script>
-        // Remove footer after page loads
-        setTimeout(function() {
-            var footer = document.querySelector('footer');
-            if (footer) footer.style.display = 'none';
-            
-            var mainMenu = document.querySelector('#MainMenu');
-            if (mainMenu) mainMenu.style.display = 'none';
-            
-            var header = document.querySelector('header');
-            if (header) header.style.display = 'none';
-        }, 100);
-    </script>
     """,
     unsafe_allow_html=True
 )
-
 
 # Title and subtitle using HTML
 st.markdown("<h1 style='text-align: center; font-size: 3em;'>AmyloDeep</h1>", unsafe_allow_html=True)
