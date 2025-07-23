@@ -123,8 +123,6 @@ if submit and sequence_input:
             st.pyplot(fig)
 
             st.markdown("<h5 style='text-align: center;'>Position-wise Probabilities</h5>", unsafe_allow_html=True)
-            df = pd.DataFrame({
-                "Subsequence": result["windows"],
-                "Probability": probs
-            })
+            df = pd.DataFrame(result["window_probs"], columns=["Subsequence", "Probability"])
+
             st.dataframe(df.style.format({"Probability": "{:.3f}"}), use_container_width=True)
