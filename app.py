@@ -10,7 +10,6 @@ st.set_page_config(page_title="Amyloid Sequence Classifier", layout="wide")
 st.markdown(
     """
     <style>
-        /* Reduce padding around the content block */
         .main .block-container {
             padding-top: 0px;
             padding-right: 30px;
@@ -18,17 +17,21 @@ st.markdown(
             padding-bottom: 0px;
             max-width: 100%;
         }
-
-        /* Hide Streamlit's menu, footer, and header */
-        #MainMenu {visibility: hidden;}
-        footer {display: none !important;}
-        header {visibility: hidden;}
-
-        /* Hide GitHub icon and Fork button */
-        .css-1v0mbdj {display: none;}  /* GitHub icon */
-        .css-fk4es0 {display: none;}  /* Fork button */
-        .css-1ydp3hp {display: none;} /* Profile avatar */
     </style>
+    
+    <script>
+        // Remove footer after page loads
+        setTimeout(function() {
+            var footer = document.querySelector('footer');
+            if (footer) footer.style.display = 'none';
+            
+            var mainMenu = document.querySelector('#MainMenu');
+            if (mainMenu) mainMenu.style.display = 'none';
+            
+            var header = document.querySelector('header');
+            if (header) header.style.display = 'none';
+        }, 100);
+    </script>
     """,
     unsafe_allow_html=True
 )
