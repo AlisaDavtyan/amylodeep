@@ -135,12 +135,13 @@ class EnsembleRollingWindowPredictor:
         max_probability = np.max(window_probs)
 
         return {
-            'windows': windows,
-            'position_probs': position_probs,
-            'avg_probability': avg_probability,
-            'max_probability': max_probability,
-            'sequence_length': sequence_length,
-            'num_windows': len(windows)
-        }
+        'windows': windows,
+        'position_probs': position_probs,
+        'window_probs': list(zip(windows, window_probs)),  # Subsequence and its probability
+        'avg_probability': avg_probability,
+        'max_probability': max_probability,
+        'sequence_length': sequence_length,
+        'num_windows': len(windows)
+    }
 
 
