@@ -1,0 +1,22 @@
+[server]
+headless = true
+port = 8501
+enableCORS = true  # required because XSRF protection is on
+enableXsrfProtection = true
+maxUploadSize = 200
+maxMessageSize = 200
+enableWebsocketCompression = false
+fileWatcherType = "auto"
+cookieSecret = "amylodeep-secret-key-change-in-production"
+
+[browser]
+gatherUsageStats = false
+serverPort = 8501
+
+[client]
+showErrorDetails = true
+
+
+[logger]
+level = "info"
+messageFormat = "%(asctime)s %(message)s"
