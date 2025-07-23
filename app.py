@@ -27,6 +27,7 @@ st.markdown(
         /* Hide GitHub icon and Fork button */
         .css-1v0mbdj {display: none;}  /* GitHub icon */
         .css-fk4es0 {display: none;}  /* Fork button */
+        .css-1ydp3hp {display: none;} /* Profile avatar */
     </style>
     """,
     unsafe_allow_html=True
