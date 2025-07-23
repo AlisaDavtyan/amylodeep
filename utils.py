@@ -46,6 +46,6 @@ def predict_ensemble_rolling(sequence: str, window_size: int = 6):
     Run ensemble prediction with rolling window over a single sequence.
     Returns dictionary with average/max probs and position-wise scores.
     """
-    models, calibrators = load_models_and_calibrators()
-    predictor = EnsembleRollingWindowPredictor(models, calibrators)
+    models, calibrators ,esm2_150M_path = load_models_and_calibrators()
+    predictor = EnsembleRollingWindowPredictor(models, calibrators,esm2_150M_path)
     return predictor.rolling_window_prediction(sequence, window_size)
