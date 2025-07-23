@@ -16,16 +16,22 @@ st.markdown(
             padding-right: 30px;
             padding-left: 30px;
             padding-bottom: 0px;
-        }
-
-        /* Optional: allow full width if layout feels narrow */
-        .main .block-container {
             max-width: 100%;
         }
+
+        /* Hide Streamlit's menu, footer, and header */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+
+        /* Hide GitHub icon and Fork button */
+        .css-1v0mbdj {display: none;}  /* GitHub icon */
+        .css-fk4es0 {display: none;}  /* Fork button */
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 # Title and subtitle using HTML
 st.markdown("<h1 style='text-align: center; font-size: 3em;'>AmyloDeep</h1>", unsafe_allow_html=True)
