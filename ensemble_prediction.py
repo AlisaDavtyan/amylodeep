@@ -58,8 +58,8 @@ class EnsembleRollingWindowPredictor:
         probs_np = probs.numpy()
 
         # Apply calibration if available
-        if '../models/platt_unirep' in self.calibrators:
-            probs_np = self.calibrators['../models/platt_unirep'].predict_proba(probs_np.reshape(-1, 1))[:, 1]
+        if 'platt_unirep' in self.calibrators:
+            probs_np = self.calibrators['platt_unirep'].predict_proba(probs_np.reshape(-1, 1))[:, 1]
 
         return probs_np
     
@@ -110,6 +110,7 @@ class EnsembleRollingWindowPredictor:
             # If sequence is shorter than window, predict on the entire sequence
             prob = self.predict_ensemble([sequence])[0]
             return {
+            
                 'position_probs': [(0, prob)],
                 'avg_probability': prob,
                 'max_probability': prob,
@@ -134,6 +135,7 @@ class EnsembleRollingWindowPredictor:
         max_probability = np.max(window_probs)
 
         return {
+            'windows': windows,
             'position_probs': position_probs,
             'avg_probability': avg_probability,
             'max_probability': max_probability,
