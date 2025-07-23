@@ -21,7 +21,7 @@ st.markdown(
 
         /* Hide Streamlit's menu, footer, and header */
         #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
+        footer {display: none !important;}
         header {visibility: hidden;}
 
         /* Hide GitHub icon and Fork button */
