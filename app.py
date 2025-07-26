@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import time
 import numpy as np
 import pandas as pd
-from ensemble_prediction import EnsembleRollingWindowPredictor
+from prediction import  RollingWindowPredictor
 from utils import load_models_and_calibrators
 
 # Page setup
@@ -13,26 +13,32 @@ st.set_page_config(page_title="Amyloid Sequence Classifier", layout="wide")
 st.markdown(
     """
     <style>
-    html, body, [data-testid="stAppViewContainer"], .main, .block-container {
+    html, body, [data-testid="stAppViewContainer"], .main {
         background-color: #F8F9FF !important;
+    }
+    /* Remove extra top padding so the header hugs the top edge */
+    .block-container {
+        padding-top: 0 !important;
     }
     .custom-header {
         background-color: #F8F9FF;
-        padding: 20px 20px;
+        padding: 20px 20px 10px 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         font-family: 'Segoe UI', sans-serif;
+        border-bottom: 1px solid #1a355e;
+        margin-bottom: 10px; /* Small gap after the header */
     }
     .custom-header .logo {
-        font-size: 26px;
+        font-size: 32px;
         font-weight: 700;
         color: #1a355e;
     }
     .custom-header .nav-links a {
-        margin-left: 40px;
+        margin-left: 25px;
         text-decoration: none;
-        font-size: 17px;
+        font-size: 22px;
         color: #1a355e;
     }
     .custom-header .nav-links a:hover {
@@ -41,6 +47,30 @@ st.markdown(
     #MainMenu, footer, header, .viewerBadge_container__1QSob {
         visibility: hidden !important;
         display: none !important;
+    }
+    .stFormSubmitButton button {
+        background-color: #FFFFFF !important;
+        border: 2px solid #00b300 !important;
+        width: 150px !important;
+        height: 50px !important;
+        border-radius: 8px !important;
+    }
+
+    .stFormSubmitButton button:hover {
+        background-color: #bcf5bc !important;
+        border-color: #00b300 !important;
+        font-color: #000000
+    }
+
+    .stFormSubmitButton button p {
+        font-size: 18px !important;
+        margin: 0 !important;
+    }
+
+    .stFormSubmitButton button div {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        font-family: 'Arial', sans-serif !important;
     }
     </style>
     <div class="custom-header">
@@ -57,7 +87,13 @@ st.markdown(
 )
 
 # Intro
-st.markdown("<h5 style='text-align: center;'>Deep learning-based ensemble model for predicting amyloid propensity from the amino acid sequence</h5>", unsafe_allow_html=True)
+st.markdown(
+    "<h5 style='text-align: center; margin-top: 15px; margin-bottom: 20px;'>"
+    "Deep learning-based model for predicting amyloid propensity from the amino acid sequence.<br/>"
+    "To access full ensemble model follow source ."
+    "</h5>",
+    unsafe_allow_html=True
+)
 
 # FASTA Parser
 def parse_fasta(fasta_text):
@@ -69,27 +105,42 @@ left_col, right_col = st.columns([1.2, 2])
 
 with left_col:
     with st.form("sequence_form"):
-        sequence_input = st.text_area("Paste your protein sequence:", height=200)
+        # Title above text area
+        st.markdown(
+            "<div style='font-size:15px; color:#666666; margin-bottom: 0px; line-height: 1;'>Paste amino acid sequence:</div>",
+            unsafe_allow_html=True
+        )
+        sequence_input = st.text_area(" ", key="sequence_input", height=200)
 
-        st.markdown("**or Upload FASTA file**")
+        # Upload section
+        st.markdown(
+            "<div style='font-size:15px; color:#666666; margin-top: 5px; margin-bottom: 2px; line-height: 1;'>or Upload FASTA file</div>",
+            unsafe_allow_html=True
+        )
         uploaded_file = st.file_uploader(" ", type=["fasta", "fa", "txt"])
         if uploaded_file is not None:
             content = uploaded_file.read().decode("utf-8")
             sequence_input = parse_fasta(content)
 
+
+        # Rolling window slider
         window_size = st.slider("Rolling window size:", min_value=3, max_value=30, value=6, step=1, key="window_slider")
-        submit = st.form_submit_button("Predict")
+
+
+        predict_btn = st.form_submit_button("Predict")
+
+
 
 # Load predictor
 @st.cache_resource(show_spinner=False)
 def get_predictor():
-    models, calibrators, tokenizer_1 = load_models_and_calibrators()
-    return EnsembleRollingWindowPredictor(models, calibrators, tokenizer= tokenizer_1)
+    model, calibrator= load_models_and_calibrators()
+    return RollingWindowPredictor(model, calibrator)
 
 predictor = get_predictor()
 
 # Prediction
-if submit and sequence_input:
+if predict_btn and sequence_input:
     sequence = sequence_input.strip().upper()
     if not sequence.isalpha():
         st.error("Invalid input. Please enter only alphabetic amino acid codes (A-Z).")
@@ -99,9 +150,9 @@ if submit and sequence_input:
         end_time = time.time()
 
         with right_col:
-            st.markdown(f"**⏱ Prediction time:** `{end_time - start_time:.2f} seconds`")
-            st.subheader(f"{sequence}")
-            st.markdown("<h5 style='text-align: center;'>Position-wise Probability Plot</h5>", unsafe_allow_html=True)
+            # st.markdown(f"**⏱ Sequence:**")
+            st.markdown(f"<h4 style='font-size: 18px;'>{sequence}</h4>", unsafe_allow_html=True)
+            # st.markdown("<h5 style='text-align: center;'>Window-wise Amyloidogenicity probability plot using AmyloDee</h5>", unsafe_allow_html=True)
 
             positions, probs = zip(*result['position_probs'])
             x = np.arange(0, len(sequence) - window_size + 1)
@@ -115,11 +166,14 @@ if submit and sequence_input:
             ax.set_xlabel("Residue", fontsize=12)
             ax.set_xlim(-1, len(sequence))
             ax.set_ylim(0, 1)
-            ax.set_xticks(np.arange(0, len(sequence) + 1, min(10, len(sequence))))
+            if len(sequence) < 100:
+                ax.set_xticks(np.arange(0, len(sequence),5))
+            else:
+                ax.set_xticks(np.arange(0, len(sequence),50))
             ax.axhline(y=0.5, color='green', linestyle='--', alpha=0.7)
             ax.axhline(y=0.8, color='red', linestyle='--', alpha=0.7)
             ax.tick_params(axis='both', labelsize=12)
-            ax.set_title('AmyloDeep', fontsize=18)
+            ax.set_title('Amyloidogenicity probability per window ', fontsize=16)
             st.pyplot(fig)
 
             st.markdown("<h5 style='text-align: center;'>Position-wise Probabilities</h5>", unsafe_allow_html=True)

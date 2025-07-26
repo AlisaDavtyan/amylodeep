@@ -5,39 +5,20 @@ from transformers import AutoTokenizer, AutoModel
 import jax_unirep
 import pickle
 
-class EnsembleRollingWindowPredictor:
-    def __init__(self, models_dict, calibrators_dict=None, tokenizer=None):
+class RollingWindowPredictor:
+    def __init__(self, model, calibrator=None):
         """
-        Initialize the ensemble predictor with all 5 models and calibrators.
+        Initialize the UniRep predictor with optional calibration.
 
         Args:
-            models_dict: Dictionary containing all 5 models with keys:
-                'esm2_150M', 'unirep', 'esm2_650M', 'svm', 'xgboost'
-            calibrators_dict: Dictionary containing calibrators where applicable
+            model: Trained PyTorch model that accepts UniRep embeddings
+            calibrator: Optional sklearn-like calibrator for probability adjustment
         """
-        self.models = models_dict
-        self.calibrators = calibrators_dict or {}
-
-        self.tokenizer_1 = tokenizer
-    
+        self.model = model
+        self.calibrator = calibrator 
 
 
-    def _predict_model_1(self, sequences):
-        """ESM2 150M fine-tuned model prediction"""
-        def tokenize_function(sequences):
-            return self.tokenizer_1(sequences, padding="max_length", truncation=True, max_length=128)
-
-        encodings = tokenize_function(sequences)
-        input_ids = torch.tensor(encodings['input_ids'])
-        attention_mask = torch.tensor(encodings['attention_mask'])
-
-        with torch.no_grad():
-            outputs = self.models['esm2_150M'](input_ids=input_ids, attention_mask=attention_mask)
-            probs = F.softmax(outputs.logits, dim=1)[:, 1]
-
-        return probs.numpy()
-
-    def _predict_model_2(self, sequences):
+    def predict(self, sequences):
         """UniRep model prediction"""
         def unirep_tokenize_function(sequences):
             h_final, c_final, h_avg = jax_unirep.get_reps(sequences)
@@ -51,41 +32,17 @@ class EnsembleRollingWindowPredictor:
         embeddings = torch.tensor(encodings["embeddings"], dtype=torch.float32)
 
         with torch.no_grad():
-            outputs = self.models['unirep'](embeddings=embeddings)
+            outputs = self.model(embeddings=embeddings)
             probs = F.softmax(outputs['logits'], dim=1)[:, 1]
 
         probs_np = probs.numpy()
 
         
-        if 'platt_unirep' in self.calibrators:
-            probs_np = self.calibrators['platt_unirep'].predict_proba(probs_np.reshape(-1, 1))[:, 1]
+        if self.calibrator is not None:
+            probs_np = self.calibrator.predict_proba(probs_np.reshape(-1, 1))[:, 1]
 
         return probs_np
     
-
-
-    def predict_ensemble(self, sequences):
-        """
-        Predict ensemble probabilities for a list of sequences.
-
-        Args:
-            sequences: List of protein sequences
-
-        Returns:
-            numpy array of ensemble probabilities
-        """
-        # Get predictions from all models
-        probs_1 = self._predict_model_1(sequences)  # ESM2 150M - NO calibration
-        probs_2 = self._predict_model_2(sequences)  # UniRep - WITH calibration (platt_unirep)
-    
-
-        # Combine probabilities (matching your original mixed_probs_list order)
-        mixed_probs_list = [probs_1, probs_2]
-
-        # Compute average probabilities
-        avg_probs = np.mean(mixed_probs_list, axis=0)
-
-        return avg_probs
 
     def rolling_window_prediction(self, sequence, window_size):
         """
@@ -110,15 +67,15 @@ class EnsembleRollingWindowPredictor:
 
         if sequence_length < window_size:
             # If sequence is shorter than window, predict on the entire sequence
-            prob = self.predict_ensemble([sequence])[0]
+            prob = self.predict([sequence])[0]
             return {
-                'windows': [sequence],  # ✅ Added missing key
+                'windows': [sequence], 
                 'position_probs': [(0, prob)],
-                'window_probs': [(sequence, prob)],  # ✅ Added missing key - (subsequence, probability)
+                'window_probs': [(sequence, prob)], 
                 'avg_probability': prob,
                 'max_probability': prob,
                 'sequence_length': sequence_length,
-                'num_windows': 1  # ✅ Added missing key
+                'num_windows': 1  
             }
 
     
@@ -131,7 +88,7 @@ class EnsembleRollingWindowPredictor:
             positions.append(i)
 
         # Predict on all windows
-        window_probs = self.predict_ensemble(windows)
+        window_probs = self.predict(windows)
 
         # Combine results
         position_probs = list(zip(positions, window_probs))
