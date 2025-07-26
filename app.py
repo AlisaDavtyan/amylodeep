@@ -125,17 +125,23 @@ with left_col:
 
         # Rolling window slider
         window_size = st.slider("Rolling window size:", min_value=3, max_value=30, value=6, step=1, key="window_slider")
-
-
         predict_btn = st.form_submit_button("Predict")
 
 
 
 # Load predictor
 @st.cache_resource(show_spinner=False)
+# def get_predictor():
+#     model, calibrator= load_models_and_calibrators()
+#     return RollingWindowPredictor(model, calibrator)
 def get_predictor():
-    model, calibrator= load_models_and_calibrators()
-    return RollingWindowPredictor(model, calibrator)
+    try:
+        model, calibrator = load_models_and_calibrators()
+        return RollingWindowPredictor(model=model, calibrator=calibrator)
+    except Exception as e:
+        st.error("Failed to load predictor.")
+        st.exception(e)  # show full traceback in local or cloud logs
+        raise e
 
 predictor = get_predictor()
 
