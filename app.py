@@ -124,7 +124,7 @@ with left_col:
 
 
         # Rolling window slider
-        window_size = st.slider("Rolling window size:", min_value=3, max_value=30, value=6, step=1, key="window_slider")
+        window_size = st.slider("Rolling window size:", min_value=3, max_value=30, value=10, step=1, key="window_slider")
         predict_btn = st.form_submit_button("Predict")
 
 
@@ -170,12 +170,28 @@ if predict_btn and sequence_input:
             ax.bar(x, probs, color=bar_colors, width=1, edgecolor="black")
             ax.set_ylabel("Probability", fontsize=12)
             ax.set_xlabel("Residue", fontsize=12)
-            ax.set_xlim(-1, len(sequence))
-            ax.set_ylim(0, 1)
-            if len(sequence) < 100:
-                ax.set_xticks(np.arange(0, len(sequence),5))
+            L = len(sequence)
+            # ax.set_xlim(-1, len(sequence))
+            ax.set_xlim(-1, L - window_size + 1)
+
+            if L < 100:
+                ax.set_xticks(np.arange(0, L+1, 5))
             else:
-                ax.set_xticks(np.arange(0, len(sequence),50))
+                # labels at residues [0, L/5, 2L/5, ..., L]
+                step = int(np.ceil(L/5/10) * 10)
+                tick_labels = np.arange(0, L+1, step)
+
+                # convert those residue labels to bar x-positions (window starts)
+                # last label "L" maps to the last window start at L - window_size
+                tick_positions = np.minimum(tick_labels, L - window_size)
+
+                ax.set_xticks(tick_positions)
+                ax.set_xticklabels([str(t) for t in tick_labels])
+            # ax.set_ylim(0, 1)
+            # if len(sequence) < 100:
+            #     ax.set_xticks(np.arange(0, len(sequence),5))
+            # else:
+            #     ax.set_xticks(np.arange(0, len(sequence),50))
             ax.axhline(y=0.5, color='green', linestyle='--', alpha=0.7)
             ax.axhline(y=0.8, color='red', linestyle='--', alpha=0.7)
             ax.tick_params(axis='both', labelsize=12)
