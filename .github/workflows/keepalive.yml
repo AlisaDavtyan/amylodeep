@@ -1,51 +1,72 @@
-name: Keep Streamlit App Alive
+name: Keep Streamlit Awake (with interaction)
 
 on:
   schedule:
-    - cron: '0 */8 * * *'   # every 8 hours UTC
+    - cron: "0 */6 * * *"        
   workflow_dispatch:
 
 jobs:
-  keep-alive:
+  wake:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
-    - name: Ping Streamlit App
-      run: |
-        echo "Pinging app at $(date)"
-        response=$(curl -s -o /dev/null -w "%{http_code}" https://amylodeep.streamlit.app/)
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-        if [ "$response" -eq 200 ]; then
-          echo "✅ App is alive! Response code: $response"
-        else
-          echo "⚠️ App might be sleeping. Response code: $response"
-          curl -s https://amylodeep.streamlit.app/ > /dev/null
-          echo "Sent wake-up request"
-        fi
+      - name: Install Playwright (Chromium)
+        run: |
+          npm init -y
+          npm i playwright
+          npx playwright install --with-deps chromium
 
-    - name: Health Check with Retry
-      run: |
-        max_retries=3
-        retry_count=0
+      - name: Visit app, paste sequence, click Predict
+        env:
+          URL: "https://amylodeep.streamlit.app/"
+        run: |
+          node - <<'JS'
+          const {chromium} = require('playwright');
 
-        while [ $retry_count -lt $max_retries ]; do
-          echo "Attempt $((retry_count + 1)) of $max_retries"
-          if curl -f -s https://amylodeep.streamlit.app/ > /dev/null; then
-            echo "✅ App responded successfully"
-            exit 0
-          else
-            echo "❌ App didn't respond, retrying..."
-            sleep $((30 * (retry_count + 1)))
-            retry_count=$((retry_count + 1))
-          fi
-        done
+          // Small helper: wait for Streamlit to finish a rerun (spinners, etc.)
+          async function settle(page, ms=15000){ await page.waitForTimeout(ms); }
 
-        echo "❌ App didn't respond after $max_retries attempts"
-        exit 1  # mark workflow as failed if all retries exhausted
+          (async () => {
+            const browser = await chromium.launch({headless: true});
+            const context = await browser.newContext();
+            const page = await context.newPage();
 
-    - name: Notify Slack (optional)
-      if: failure()
-      run: |
-        curl -X POST -H 'Content-type: application/json' \
-             --data '{"text":"⚠️ Streamlit app is DOWN after retries!"}' \
-             ${{ secrets.SLACK_WEBHOOK_URL }}
+            const url = process.env.URL;
+            console.log("Visiting:", url);
+            await page.goto(url, {waitUntil: "networkidle", timeout: 120000});
+
+            // Paste a short valid amino-acid sequence into the first textarea
+            // (Your label is visually rendered via Markdown, and the actual text_area label is " " in code,
+            // so we target the first <textarea> on the page.)
+            const textarea = page.locator("textarea").first();
+            await textarea.waitFor({state: "visible", timeout: 60000});
+            await textarea.fill("ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY");
+
+            // Optionally tweak the slider (Streamlit renders it as input[type=range])
+            // Here we leave default value; uncomment to adjust:
+            // const slider = page.locator("input[type=range]").first();
+            // await slider.evaluate(el => el.value = 12); // browser-side set
+            // await slider.dispatchEvent('input');        // emit change
+            // await slider.dispatchEvent('change');
+
+            // Click the Predict button by its visible text
+            await page.getByRole("button", { name: "Predict" }).click();
+
+            // Wait for results to render — use a reliable text from your app
+            await page.getByText("Position-wise Probabilities", { exact: false }).waitFor({ timeout: 120000 });
+
+            // Keep the page open a bit so the websocket stays active (warms the app)
+            await settle(page, 10000);
+
+            console.log("Interaction complete ✅");
+            await browser.close();
+          })().catch(err => {
+            console.error("Playwright error:", err);
+            process.exit(1);
+          });
+          JS
