@@ -1,4 +1,4 @@
-name: AmyloDeep Keep-Alive Python
+name: AmyloDeep Keep-Alive
 
 on:
   schedule:
@@ -24,7 +24,7 @@ jobs:
     - name: Install Chrome
       run: |
         sudo apt-get update
-        sudo apt-get install -y chromium-browser
+        sudo apt-get install -y chromium-chromedriver
 
     - name: Interact with AmyloDeep App
       run: |
@@ -34,6 +34,7 @@ jobs:
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
         from selenium.webdriver.chrome.options import Options
+        from selenium.common.exceptions import TimeoutException, NoSuchElementException
         import time
 
         # Set up Chrome options
@@ -52,88 +53,117 @@ jobs:
             driver.get("https://amylodeep.streamlit.app/")
             
             # Wait for page to load
-            WebDriverWait(driver, 60).until(
+            WebDriverWait(driver, 30).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             print("✅ Page loaded successfully")
 
+            # Wait for Streamlit to fully render
+            print("⏳ Waiting for Streamlit components to render...")
+            time.sleep(8)
+
             # Check if app is sleeping
             try:
-                wake_button = WebDriverWait(driver, 8).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Yes, get this app back up!')]"))
+                wake_button = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'get this app back up')]"))
                 )
                 print("😴 App is sleeping, clicking wake-up button...")
                 wake_button.click()
-                print("⏳ Waiting for app to wake up (45 seconds)...")
-                time.sleep(45)
+                print("⏳ Waiting for app to wake up (30 seconds)...")
+                time.sleep(30)
                 print("✅ Wake-up wait completed")
             except:
                 print("✅ App is not sleeping")
 
-            # Wait for Streamlit to be ready
-            print("⏳ Waiting for Streamlit to be ready...")
-            time.sleep(10)
-
-            # Find the textarea
-            print("🔍 Looking for sequence input textarea...")
-            try:
-                # Try to find by key attribute
-                textarea = driver.find_element(By.CSS_SELECTOR, "textarea[key='sequence_input']")
-            except:
-                try:
-                    # Try to find by label text
-                    label = driver.find_element(By.XPATH, "//div[contains(text(), 'Paste amino acid sequence:')]")
-                    # Find the nearest textarea
-                    textarea = label.find_element(By.XPATH, "./following::textarea")
-                except:
-                    # Fallback to any textarea
-                    textarea = driver.find_element(By.TAG_NAME, "textarea")
+            # Find the form that contains the sequence input
+            print("🔍 Looking for the sequence form...")
             
-            print("✅ Found textarea")
+            # Wait for the form to be present
+            WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.XPATH, "//form[@data-testid='stForm']"))
+            )
+            
+            # Find the textarea within the form using its key attribute
+            print("🔍 Looking for sequence textarea...")
+            textarea = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.XPATH, "//textarea[@data-testid='stTextArea']"))
+            )
+            print("✅ Found sequence textarea")
 
-            # Fill the textarea
+            # Fill the textarea with a test sequence
             print("📝 Filling sequence input...")
-            test_sequence = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+            test_sequence = "ACDEFGHIKLMNPQRSTVWY"  # Short test sequence
             textarea.clear()
             textarea.send_keys(test_sequence)
             print(f"✅ Filled sequence: {test_sequence}")
             time.sleep(2)
 
+            # Find the slider and set it to a value
+            print("🎚️ Adjusting window size slider...")
+            try:
+                # Find the slider by its key attribute or label
+                slider = driver.find_element(By.XPATH, "//input[@type='range']")
+                # Set the slider value to 12
+                driver.execute_script("arguments[0].value = '12'; arguments[0].dispatchEvent(new Event('input', {bubbles: true}));", slider)
+                print("✅ Set window size to 12")
+                time.sleep(1)
+            except:
+                print("⚠️ Could not adjust slider, using default value")
+
             # Find and click the Predict button
             print("🔍 Looking for Predict button...")
-            try:
-                predict_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Predict')]")
-                print("✅ Found Predict button")
-                
-                print("🖱️ Clicking Predict button...")
-                predict_button.click()
-                print("✅ Predict button clicked")
-                
-                # Wait for results
-                print("⏳ Waiting for prediction to complete...")
-                time.sleep(30)
-                
-                # Check if results are visible
-                try:
-                    results = driver.find_element(By.XPATH, "//h5[contains(text(), 'Position-wise Probabilities')]")
-                    print("✅ Prediction completed successfully")
-                except:
-                    print("⚠️ Results not found, but interaction completed")
-                
-            except:
-                print("❌ Could not find Predict button")
+            
+            # Look for the submit button in the form
+            predict_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//form//button[@type='submit']"))
+            )
+            
+            print("✅ Found Predict button")
+            
+            # Scroll to the button to ensure it's visible
+            driver.execute_script("arguments[0].scrollIntoView(true);", predict_button)
+            time.sleep(1)
+            
+            print("🖱️ Clicking Predict button...")
+            predict_button.click()
+            print("✅ Predict button clicked")
 
-            # Keep connection alive
-            print("🔗 Keeping connection alive for 30 seconds...")
-            time.sleep(30)
+            # Wait for prediction to complete
+            print("⏳ Waiting for prediction to complete...")
+            time.sleep(25)  # Wait for prediction to process
+
+            # Check if results are shown (look for the results section)
+            try:
+                # Look for the results heading or dataframe
+                results_heading = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, "//h5[contains(., 'Position-wise Probabilities')]"))
+                )
+                print("✅ Prediction completed successfully - results are showing!")
+            except:
+                print("⚠️ Results not found, but prediction was submitted")
+
+            # Keep connection alive a bit longer
+            print("🔗 Keeping connection alive for 15 seconds...")
+            time.sleep(15)
+
             print("🎉 AmyloDeep interaction completed successfully!")
 
         except Exception as e:
             print(f"❌ Error during interaction: {str(e)}")
-            # Take screenshot for debugging
-            driver.save_screenshot('debug-screenshot.png')
-            print("📸 Screenshot saved for debugging")
             
+            # Take screenshot for debugging
+            try:
+                driver.save_screenshot('debug-screenshot.png')
+                print("📸 Screenshot saved for debugging")
+                
+                # Also get page source for debugging
+                with open('page-source.html', 'w') as f:
+                    f.write(driver.page_source)
+                print("📄 Page source saved for debugging")
+                
+            except Exception as screenshot_error:
+                print(f"📸 Could not take screenshot: {screenshot_error}")
+
         finally:
             driver.quit()
             print("🔚 Browser closed")
