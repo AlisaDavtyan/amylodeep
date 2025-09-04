@@ -1,214 +1,95 @@
-name: AmyloDeep Keep-Alive
+name: Keep Streamlit Awake (with interaction)
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */6 * * *"       
   workflow_dispatch:
 
 jobs:
-  interact:
+  wake:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: "20"
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-    - name: Install Playwright
-      run: |
-        npm init -y
-        npm i playwright
-        npx playwright install --with-deps chromium
+      - name: Install Playwright (Chromium)
+        run: |
+          npm init -y
+          npm i playwright
+          npx playwright install --with-deps chromium
 
-    - name: Interact with AmyloDeep App
-      run: |
-        node - <<'JS'
-        const {chromium} = require('playwright');
+      - name: Visit app, paste sequence, click Predict
+        env:
+          URL: "https://amylodeep.streamlit.app/"
+        run: |
+          node - <<'JS'
+          const {chromium} = require('playwright');
+          const fs = require('fs');
 
-        async function sleep(ms) {
-          return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-        (async () => {
-          const browser = await chromium.launch({headless: true});
-          const context = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          });
-          const page = await context.newPage();
-          
-          try {
-            console.log("🌐 Loading AmyloDeep app...");
-            await page.goto("https://amylodeep.streamlit.app/", {
-              waitUntil: "networkidle",
-              timeout: 120000
-            });
-            
-            console.log("✅ Page loaded successfully");
-
-            // Check if app is sleeping
+          async function saveDiagnostics(page, prefix="debug"){
             try {
-              const wakeButton = await page.waitForSelector('text="Yes, get this app back up!"', {timeout: 8000});
-              if (wakeButton) {
-                console.log("😴 App is sleeping, clicking wake-up button...");
-                await wakeButton.click();
-                console.log("⏳ Waiting for app to wake up (45 seconds)...");
-                await sleep(45000);
-                console.log("✅ Wake-up wait completed");
-              }
-            } catch (e) {
-              console.log("✅ App is not sleeping (no wake-up button found)");
+              await page.screenshot({path: `${prefix}.png`, fullPage: true});
+              const html = await page.content();
+              fs.writeFileSync(`${prefix}.html`, html);
+              console.log("Saved diagnostics:", `${prefix}.png`, `${prefix}.html`);
+            } catch(e) {
+              console.log("Failed to save diagnostics:", e);
             }
-
-            // Wait for Streamlit to be ready (look for spinners to disappear)
-            console.log("⏳ Waiting for Streamlit to be ready...");
-            await sleep(10000);
-
-            // Look for your specific textarea with key="sequence_input"
-            console.log("🔍 Looking for sequence input textarea...");
-            
-            let textarea = null;
-            const selectors = [
-              '[data-testid="stTextArea"] textarea',
-              'textarea[aria-label*="sequence_input"]',
-              'textarea',
-              '[key="sequence_input"] textarea'
-            ];
-
-            for (const selector of selectors) {
-              try {
-                textarea = page.locator(selector).first();
-                await textarea.waitFor({state: "visible", timeout: 15000});
-                console.log(`✅ Found textarea with selector: ${selector}`);
-                break;
-              } catch (e) {
-                console.log(`❌ Selector "${selector}" not found, trying next...`);
-                textarea = null;
-              }
-            }
-
-            if (!textarea) {
-              throw new Error("Could not find sequence input textarea");
-            }
-
-            // Fill the textarea with a test sequence
-            console.log("📝 Filling sequence input...");
-            const testSequence = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY";
-            await textarea.fill(testSequence);
-            await sleep(2000);
-            console.log(`✅ Filled sequence: ${testSequence}`);
-
-            // Optionally adjust the slider (your slider has key="window_slider")
-            console.log("🎚️ Adjusting window size slider...");
-            try {
-              // Look for the slider input
-              const slider = page.locator('input[type="range"]').first();
-              await slider.waitFor({state: "visible", timeout: 10000});
-              
-              // Set value to 12 (within your range of 3-30)
-              await slider.evaluate(el => {
-                el.value = 12;
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-              });
-              console.log("✅ Set window size to 12");
-              await sleep(1000);
-            } catch (e) {
-              console.log("⚠️ Could not find/adjust slider, using default");
-            }
-
-            // Find and click the Predict button (inside form)
-            console.log("🔍 Looking for Predict button...");
-            
-            let predictButton = null;
-            const buttonSelectors = [
-              '[data-testid="stFormSubmitButton"] button',
-              'button[kind="formSubmit"]',
-              'button:has-text("Predict")',
-              'form button'
-            ];
-
-            for (const selector of buttonSelectors) {
-              try {
-                predictButton = page.locator(selector);
-                await predictButton.waitFor({state: "visible", timeout: 10000});
-                const text = await predictButton.textContent();
-                if (text && text.toLowerCase().includes('predict')) {
-                  console.log(`✅ Found Predict button: "${text.trim()}"`);
-                  break;
-                }
-              } catch (e) {
-                console.log(`❌ Button selector "${selector}" failed`);
-                predictButton = null;
-              }
-            }
-
-            if (!predictButton) {
-              throw new Error("Could not find Predict button");
-            }
-
-            // Click the predict button
-            console.log("🖱️ Clicking Predict button...");
-            await predictButton.click();
-            console.log("✅ Predict button clicked");
-
-            // Wait for prediction to complete
-            console.log("⏳ Waiting for prediction to complete...");
-            
-            try {
-              // Wait for the "Position-wise Probabilities" heading to appear
-              await page.waitForSelector('text="Position-wise Probabilities"', {timeout: 60000});
-              console.log("✅ Prediction completed - results are showing!");
-            } catch (e) {
-              console.log("⚠️ Results heading not found, but waiting a bit more...");
-              await sleep(20000);
-            }
-
-            // Keep the connection alive to simulate user staying on page
-            console.log("🔗 Keeping connection alive for 30 seconds...");
-            await sleep(30000);
-
-            console.log("🎉 AmyloDeep interaction completed successfully!");
-
-          } catch (error) {
-            console.error("❌ Error during interaction:", error.message);
-            
-            // Take screenshot for debugging
-            try {
-              const screenshot = await page.screenshot({ 
-                path: 'debug-screenshot.png',
-                fullPage: true 
-              });
-              console.log("📸 Screenshot saved for debugging");
-            } catch (screenshotError) {
-              console.log("📸 Could not take screenshot");
-            }
-
-            // Get current URL and page title for debugging
-            try {
-              const url = await page.url();
-              const title = await page.title();
-              console.log(`🔍 Current URL: ${url}`);
-              console.log(`🔍 Page title: ${title}`);
-              
-              // If we at least reached the Streamlit app, consider it a partial success
-              if (url.includes('amylodeep.streamlit.app')) {
-                console.log("✅ At least reached the AmyloDeep app");
-              } else {
-                throw error; // Re-throw if we didn't even reach the app
-              }
-            } catch (debugError) {
-              console.log("Could not get debug info");
-              throw error;
-            }
-            
-          } finally {
-            await browser.close();
-            console.log("🔚 Browser closed");
           }
-        })().catch(err => {
-          console.error("💥 Fatal error:", err);
-          process.exit(1);
-        });
-        JS
+
+          (async () => {
+            const browser = await chromium.launch({headless: true});
+            const context = await browser.newContext();
+            const page = await context.newPage();
+
+            const url = process.env.URL;
+            console.log("Visiting:", url);
+            // Give plenty of time for first load / cold start
+            await page.goto(url, {waitUntil: "networkidle", timeout: 180000});
+
+            // Ensure Streamlit app container is present
+            await page.waitForSelector('[data-testid="stAppViewContainer"]', {timeout: 120000});
+
+            // Prefer Streamlit's textarea test-id; fall back if needed
+            let textarea = page.locator('[data-testid="stTextArea"] textarea').first();
+            try {
+              await textarea.waitFor({state: "visible", timeout: 30000});
+            } catch {
+              console.log("Primary selector not visible yet, trying fallbacks…");
+              textarea = page.locator('textarea, [role="textbox"], [contenteditable="true"]').first();
+              await textarea.waitFor({state: "visible", timeout: 60000});
+            }
+
+            // Fill a valid amino-acid sequence
+            const seq = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY";
+            await textarea.fill(seq);
+
+            // Click the Predict button by accessible name
+            await page.getByRole("button", { name: "Predict" }).click();
+
+            // Wait for your results section to appear
+            await page.getByText("Position-wise Probabilities", { exact: false }).waitFor({ timeout: 120000 });
+
+            // Keep page alive briefly so websocket stays active and app warms up
+            await page.waitForTimeout(10000);
+
+            console.log("Interaction complete ✅");
+            await browser.close();
+          })().catch(async (err) => {
+            console.error("Playwright error:", err);
+            process.exit(1);
+          });
+          JS
+
+      - name: Upload diagnostics (screenshots, HTML) on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          path: |
+            debug.png
+            debug.html
