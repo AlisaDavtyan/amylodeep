@@ -1,93 +1,97 @@
-name: Hybrid Keep-Alive
+name: AmyloDeep Keep-Alive
 
 on:
   schedule:
-    - cron: "0 */4 * * *" 
+    - cron: "0 */6 * * *"   # every 6 hours
   workflow_dispatch:
 
 jobs:
-  keep-alive:
+  probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
-    - name: Multi-Stage App Wake-Up
-      run: |
-        URL="https://amylodeep.streamlit.app/"
-        echo "🚀 Starting multi-stage wake-up for $URL"
-        
-        # Stage 1: Quick health check
-        echo "📡 Stage 1: Quick health check..."
-        response=$(curl -s -w "%{http_code}|%{time_total}" -m 15 "$URL")
-        http_code=$(echo $response | cut -d'|' -f1)
-        time_total=$(echo $response | cut -d'|' -f2)
-        
-        echo "Initial response: $http_code (${time_total}s)"
-        
-        if [ "$http_code" -eq 200 ] && (( $(echo "$time_total < 3.0" | bc -l) )); then
-          echo "✅ App is already awake and responsive!"
-        else
-          echo "😴 App seems to be sleeping or slow, initiating wake-up..."
-          
-          # Stage 2: Aggressive wake-up sequence
-          echo "📡 Stage 2: Sending wake-up requests..."
-          for i in {1..5}; do
-            echo "Wake-up attempt $i/5..."
-            curl -s -m 30 \
-              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-              -H "Accept: text/html,application/xhtml+xml,application/xml" \
-              -H "Cache-Control: no-cache" \
-              "$URL" > /dev/null
-            
-            # Check if it's responding better now
-            quick_check=$(curl -s -w "%{http_code}" -m 10 "$URL")
-            if [ "$quick_check" -eq 200 ]; then
-              echo "✅ App responded with 200 after $i attempts"
-              break
-            fi
-            
-            [ $i -lt 5 ] && sleep 15
-          done
-          
-          # Stage 3: Final verification with longer timeout
-          echo "📡 Stage 3: Final verification..."
-          sleep 10
-          final_response=$(curl -s -w "%{http_code}|%{time_total}|%{size_download}" -m 45 "$URL")
-          final_code=$(echo $final_response | cut -d'|' -f1)
-          final_time=$(echo $final_response | cut -d'|' -f2)
-          final_size=$(echo $final_response | cut -d'|' -f3)
-          
-          echo "Final check: $final_code (${final_time}s, ${final_size} bytes)"
-          
-          if [ "$final_code" -eq 200 ]; then
-            if [ "$final_size" -gt 1000 ]; then
-              echo "✅ App is fully awake and serving content!"
-            else
-              echo "⚠️ App responded but content seems minimal"
-            fi
-          else
-            echo "❌ App still not responding properly"
-            exit 1
-          fi
-        fi
-        
-        echo "🎯 Keep-alive sequence completed at $(date)"
+      - name: Use Playwright's official action (auto-installs browsers)
+        uses: microsoft/playwright-github-action@v1
 
-    - name: Extended Activity Simulation
-      run: |
-        echo "🔗 Simulating extended user activity..."
-        URL="https://amylodeep.streamlit.app/"
-        
-        # Simulate a user staying on the page for a while
-        for i in {1..3}; do
-          echo "Activity simulation $i/3..."
-          curl -s -m 20 \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-            -H "Referer: $URL" \
-            -H "Accept: */*" \
-            "$URL" > /dev/null
-          
-          [ $i -lt 3 ] && sleep 20
-        done
-        
-        echo "✅ Activity simulation completed"
+      - name: Run wake/probe script
+        run: |
+          node - <<'JS'
+          const { chromium, devices } = require('playwright');
+
+          const URL = "https://amylodeep.streamlit.app/";
+
+          const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({
+              ...devices['Desktop Chrome'],
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36'
+            });
+            const page = await context.newPage();
+
+            try {
+              console.log("↪️ opening", URL);
+              await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
+
+              // If the Cloud "app is sleeping" interstitial is shown, click the wake button
+              // The text can change slightly, so match loosely by role & regex.
+              const wakeButton = page.getByRole('button', { name: /get this app back up/i });
+              if (await wakeButton.isVisible().catch(() => false)) {
+                console.log("😴 sleeping screen detected → clicking wake");
+                await wakeButton.click();
+                // give Streamlit container time to boot
+                await wait(45000);
+              }
+
+              // Wait for the Streamlit app shell to be ready
+              await page.waitForSelector('[data-testid="stApp"]', { timeout: 120000 });
+
+              // Streamlit needs a real, interactive session (WebSocket + UI activity).
+              // Interact with your form: textarea → slider → Predict.
+              // Your textarea has no label text, so use ARIA role "textbox".
+              const textbox = page.getByRole('textbox').first();
+              await textbox.waitFor({ state: 'visible', timeout: 30000 });
+              await textbox.fill('ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY');
+              await wait(500);
+
+              // Slider (window size). Use the first range input; your app has one.
+              const slider = page.locator('input[type="range"]');
+              if (await slider.first().isVisible().catch(() => false)) {
+                await slider.first().evaluate(el => {
+                  el.value = 12;
+                  el.dispatchEvent(new Event('input', { bubbles: true }));
+                  el.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+              }
+
+              // Submit the form: the Streamlit form submit is a real <button>
+              const predict = page.getByRole('button', { name: /^predict$/i });
+              await predict.click();
+
+              // Wait for any result UI that indicates a run completed.
+              await page.waitForSelector('text=Position-wise Probabilities', { timeout: 60000 }).catch(() => {});
+              // keep the WS open briefly to look like a human session
+              await wait(10000);
+
+              console.log("✅ probe finished ok");
+            } catch (e) {
+              console.error("❌ probe failed:", e.message);
+              try {
+                await page.screenshot({ path: 'debug-screenshot.png', fullPage: true });
+                console.log("📸 saved debug-screenshot.png");
+              } catch {}
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          JS
+      - name: Upload screenshot if failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keep-alive-debug
+          path: debug-screenshot.png
+          if-no-files-found: ignore
