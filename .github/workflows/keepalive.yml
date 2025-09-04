@@ -1,9 +1,9 @@
-name: AmyloDeep Keep-Alive
+name: AmyloDeep Keep-Alive Python
 
 on:
   schedule:
-    - cron: "0 */6 * * *"  # Runs every 6 hours
-  workflow_dispatch:        # Allows manual triggering
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
 
 jobs:
   interact:
@@ -11,264 +11,130 @@ jobs:
     timeout-minutes: 15
 
     steps:
-    - name: Setup Node
-      uses: actions/setup-node@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        node-version: "20"
+        python-version: '3.10'
 
-    - name: Install Playwright
+    - name: Install dependencies
       run: |
-        npm init -y
-        npm i playwright
-        npx playwright install --with-deps chromium
+        python -m pip install --upgrade pip
+        pip install selenium webdriver-manager
+
+    - name: Install Chrome
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser
 
     - name: Interact with AmyloDeep App
       run: |
-        node - <<'JS'
-        const {chromium} = require('playwright');
+        python - <<'EOF'
+        from selenium import webdriver
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        from selenium.webdriver.chrome.options import Options
+        import time
 
-        async function sleep(ms) {
-          return new Promise(resolve => setTimeout(resolve, ms));
-        }
+        # Set up Chrome options
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--window-size=1200,800")
+        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
-        (async () => {
-          const browser = await chromium.launch({headless: true});
-          const context = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            viewport: { width: 1200, height: 800 }
-          });
-          const page = await context.newPage();
-          
-          try {
-            console.log("🌐 Loading AmyloDeep app...");
-            await page.goto("https://amylodeep.streamlit.app/", {
-              waitUntil: "networkidle",
-              timeout: 120000
-            });
+        # Initialize the driver
+        driver = webdriver.Chrome(options=chrome_options)
+
+        try:
+            print("🌐 Loading AmyloDeep app...")
+            driver.get("https://amylodeep.streamlit.app/")
             
-            console.log("✅ Page loaded successfully");
+            # Wait for page to load
+            WebDriverWait(driver, 60).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+            print("✅ Page loaded successfully")
 
-            // Check if app is sleeping
-            try {
-              const wakeButton = await page.waitForSelector('text="Yes, get this app back up!"', {timeout: 8000});
-              if (wakeButton) {
-                console.log("😴 App is sleeping, clicking wake-up button...");
-                await wakeButton.click();
-                console.log("⏳ Waiting for app to wake up (45 seconds)...");
-                await sleep(45000);
-                console.log("✅ Wake-up wait completed");
-              }
-            } catch (e) {
-              console.log("✅ App is not sleeping (no wake-up button found)");
-            }
+            # Check if app is sleeping
+            try:
+                wake_button = WebDriverWait(driver, 8).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Yes, get this app back up!')]"))
+                )
+                print("😴 App is sleeping, clicking wake-up button...")
+                wake_button.click()
+                print("⏳ Waiting for app to wake up (45 seconds)...")
+                time.sleep(45)
+                print("✅ Wake-up wait completed")
+            except:
+                print("✅ App is not sleeping")
 
-            // Wait for Streamlit to be ready
-            console.log("⏳ Waiting for Streamlit to be ready...");
-            await sleep(10000);
+            # Wait for Streamlit to be ready
+            print("⏳ Waiting for Streamlit to be ready...")
+            time.sleep(10)
 
-            // Look for the textarea by its key attribute
-            console.log("🔍 Looking for sequence input textarea...");
+            # Find the textarea
+            print("🔍 Looking for sequence input textarea...")
+            try:
+                # Try to find by key attribute
+                textarea = driver.find_element(By.CSS_SELECTOR, "textarea[key='sequence_input']")
+            except:
+                try:
+                    # Try to find by label text
+                    label = driver.find_element(By.XPATH, "//div[contains(text(), 'Paste amino acid sequence:')]")
+                    # Find the nearest textarea
+                    textarea = label.find_element(By.XPATH, "./following::textarea")
+                except:
+                    # Fallback to any textarea
+                    textarea = driver.find_element(By.TAG_NAME, "textarea")
             
-            // Try to find the textarea using different selectors
-            let textarea = null;
-            const selectors = [
-              'textarea[key="sequence_input"]',
-              'textarea[data-testid="stTextArea"]',
-              'textarea',
-              'div[data-testid="stTextArea"] textarea'
-            ];
+            print("✅ Found textarea")
 
-            for (const selector of selectors) {
-              try {
-                textarea = page.locator(selector).first();
-                await textarea.waitFor({state: "visible", timeout: 15000});
-                console.log(`✅ Found textarea with selector: ${selector}`);
-                break;
-              } catch (e) {
-                console.log(`❌ Selector "${selector}" not found, trying next...`);
-                textarea = null;
-              }
-            }
+            # Fill the textarea
+            print("📝 Filling sequence input...")
+            test_sequence = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY"
+            textarea.clear()
+            textarea.send_keys(test_sequence)
+            print(f"✅ Filled sequence: {test_sequence}")
+            time.sleep(2)
 
-            if (!textarea) {
-              // Try a different approach - look for the label and then the textarea
-              try {
-                const label = await page.waitForSelector('div:has-text("Paste amino acid sequence:")', {timeout: 10000});
-                if (label) {
-                  // Find the nearest textarea
-                  textarea = await label.evaluateHandle(() => {
-                    const labels = document.querySelectorAll('div');
-                    for (const div of labels) {
-                      if (div.textContent.includes('Paste amino acid sequence:')) {
-                        const textarea = div.closest('.stForm')?.querySelector('textarea');
-                        if (textarea) return textarea;
-                      }
-                    }
-                    return null;
-                  });
-                  
-                  if (textarea) {
-                    console.log("✅ Found textarea using label approach");
-                  }
-                }
-              } catch (e) {
-                console.log("❌ Could not find textarea using label approach");
-              }
-            }
-
-            if (!textarea) {
-              throw new Error("Could not find sequence input textarea");
-            }
-
-            // Fill the textarea with a test sequence
-            console.log("📝 Filling sequence input...");
-            const testSequence = "ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY";
-            await textarea.fill(testSequence);
-            await sleep(2000);
-            console.log(`✅ Filled sequence: ${testSequence}`);
-
-            // Adjust the slider
-            console.log("🎚️ Adjusting window size slider...");
-            try {
-              // Look for the slider by its label
-              const sliderLabel = await page.waitForSelector('div:has-text("Rolling window size:")', {timeout: 10000});
-              if (sliderLabel) {
-                const slider = await sliderLabel.evaluateHandle(() => {
-                  const labels = document.querySelectorAll('div');
-                  for (const div of labels) {
-                    if (div.textContent.includes('Rolling window size:')) {
-                      const slider = div.closest('.stForm')?.querySelector('input[type="range"]');
-                      if (slider) return slider;
-                    }
-                  }
-                  return null;
-                });
+            # Find and click the Predict button
+            print("🔍 Looking for Predict button...")
+            try:
+                predict_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Predict')]")
+                print("✅ Found Predict button")
                 
-                if (slider) {
-                  await slider.evaluate(el => {
-                    el.value = 12;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                  });
-                  console.log("✅ Set window size to 12");
-                  await sleep(1000);
-                }
-              }
-            } catch (e) {
-              console.log("⚠️ Could not find/adjust slider, using default");
-            }
+                print("🖱️ Clicking Predict button...")
+                predict_button.click()
+                print("✅ Predict button clicked")
+                
+                # Wait for results
+                print("⏳ Waiting for prediction to complete...")
+                time.sleep(30)
+                
+                # Check if results are visible
+                try:
+                    results = driver.find_element(By.XPATH, "//h5[contains(text(), 'Position-wise Probabilities')]")
+                    print("✅ Prediction completed successfully")
+                except:
+                    print("⚠️ Results not found, but interaction completed")
+                
+            except:
+                print("❌ Could not find Predict button")
 
-            // Find and click the Predict button
-            console.log("🔍 Looking for Predict button...");
+            # Keep connection alive
+            print("🔗 Keeping connection alive for 30 seconds...")
+            time.sleep(30)
+            print("🎉 AmyloDeep interaction completed successfully!")
+
+        except Exception as e:
+            print(f"❌ Error during interaction: {str(e)}")
+            # Take screenshot for debugging
+            driver.save_screenshot('debug-screenshot.png')
+            print("📸 Screenshot saved for debugging")
             
-            let predictButton = null;
-            const buttonSelectors = [
-              'button:has-text("Predict")',
-              'button[kind="formSubmit"]',
-              'form button',
-              '[data-testid="stFormSubmitButton"] button'
-            ];
-
-            for (const selector of buttonSelectors) {
-              try {
-                predictButton = page.locator(selector).first();
-                await predictButton.waitFor({state: "visible", timeout: 10000});
-                const text = await predictButton.textContent();
-                if (text && text.toLowerCase().includes('predict')) {
-                  console.log(`✅ Found Predict button: "${text.trim()}"`);
-                  break;
-                }
-              } catch (e) {
-                console.log(`❌ Button selector "${selector}" failed`);
-                predictButton = null;
-              }
-            }
-
-            if (!predictButton) {
-              // Try to find the button by form
-              try {
-                const form = await page.waitForSelector('form', {timeout: 5000});
-                if (form) {
-                  predictButton = await form.$('button[type="submit"]');
-                  if (predictButton) {
-                    console.log("✅ Found Predict button in form");
-                  }
-                }
-              } catch (e) {
-                console.log("❌ Could not find Predict button in form");
-              }
-            }
-
-            if (!predictButton) {
-              throw new Error("Could not find Predict button");
-            }
-
-            // Click the predict button
-            console.log("🖱️ Clicking Predict button...");
-            await predictButton.click();
-            console.log("✅ Predict button clicked");
-
-            // Wait for prediction to complete
-            console.log("⏳ Waiting for prediction to complete...");
-            
-            try {
-              // Wait for either the results or an error
-              await Promise.race([
-                page.waitForSelector('text="Position-wise Probabilities"', {timeout: 60000}),
-                page.waitForSelector('text="Invalid input"', {timeout: 60000}),
-                page.waitForSelector('div[role="status"]', {timeout: 60000})
-              ]);
-              
-              console.log("✅ Prediction completed - results are showing!");
-            } catch (e) {
-              console.log("⚠️ Results heading not found, but waiting a bit more...");
-              await sleep(20000);
-            }
-
-            // Keep the connection alive to simulate user staying on page
-            console.log("🔗 Keeping connection alive for 30 seconds...");
-            await sleep(30000);
-
-            console.log("🎉 AmyloDeep interaction completed successfully!");
-
-          } catch (error) {
-            console.error("❌ Error during interaction:", error.message);
-            
-            // Take screenshot for debugging
-            try {
-              await page.screenshot({ 
-                path: 'debug-screenshot.png',
-                fullPage: true 
-              });
-              console.log("📸 Screenshot saved for debugging");
-            } catch (screenshotError) {
-              console.log("📸 Could not take screenshot");
-            }
-
-            // Get current URL and page title for debugging
-            try {
-              const url = await page.url();
-              const title = await page.title();
-              console.log(`🔍 Current URL: ${url}`);
-              console.log(`🔍 Page title: ${title}`);
-              
-              // If we at least reached the Streamlit app, consider it a partial success
-              if (url.includes('amylodeep.streamlit.app')) {
-                console.log("✅ At least reached the AmyloDeep app");
-              } else {
-                throw error; // Re-throw if we didn't even reach the app
-              }
-            } catch (debugError) {
-              console.log("Could not get debug info");
-              throw error;
-            }
-            
-          } finally {
-            await browser.close();
-            console.log("🔚 Browser closed");
-          }
-        })().catch(err => {
-          console.error("💥 Fatal error:", err);
-          process.exit(1);
-        });
-        JS
+        finally:
+            driver.quit()
+            print("🔚 Browser closed")
+        EOF
