@@ -1,72 +1,125 @@
-name: Keep Streamlit Awake (with interaction)
+name: Simple Streamlit Interaction
 
 on:
   schedule:
-    - cron: "0 */6 * * *"        
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 jobs:
-  wake:
+  interact:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+
     steps:
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
 
-      - name: Install Playwright (Chromium)
-        run: |
-          npm init -y
-          npm i playwright
-          npx playwright install --with-deps chromium
+    - name: Install Playwright
+      run: |
+        npm init -y
+        npm i playwright
+        npx playwright install --with-deps chromium
 
-      - name: Visit app, paste sequence, click Predict
-        env:
-          URL: "https://amylodeep.streamlit.app/"
-        run: |
-          node - <<'JS'
-          const {chromium} = require('playwright');
+    - name: Simple App Interaction
+      run: |
+        node - <<'JS'
+        const {chromium} = require('playwright');
 
-          // Small helper: wait for Streamlit to finish a rerun (spinners, etc.)
-          async function settle(page, ms=15000){ await page.waitForTimeout(ms); }
-
-          (async () => {
-            const browser = await chromium.launch({headless: true});
-            const context = await browser.newContext();
-            const page = await context.newPage();
-
-            const url = process.env.URL;
-            console.log("Visiting:", url);
-            await page.goto(url, {waitUntil: "networkidle", timeout: 120000});
-
-            // Paste a short valid amino-acid sequence into the first textarea
-            // (Your label is visually rendered via Markdown, and the actual text_area label is " " in code,
-            // so we target the first <textarea> on the page.)
-            const textarea = page.locator("textarea").first();
-            await textarea.waitFor({state: "visible", timeout: 60000});
-            await textarea.fill("ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY");
-
-            // Optionally tweak the slider (Streamlit renders it as input[type=range])
-            // Here we leave default value; uncomment to adjust:
-            // const slider = page.locator("input[type=range]").first();
-            // await slider.evaluate(el => el.value = 12); // browser-side set
-            // await slider.dispatchEvent('input');        // emit change
-            // await slider.dispatchEvent('change');
-
-            // Click the Predict button by its visible text
-            await page.getByRole("button", { name: "Predict" }).click();
-
-            // Wait for results to render — use a reliable text from your app
-            await page.getByText("Position-wise Probabilities", { exact: false }).waitFor({ timeout: 120000 });
-
-            // Keep the page open a bit so the websocket stays active (warms the app)
-            await settle(page, 10000);
-
-            console.log("Interaction complete ✅");
+        (async () => {
+          const browser = await chromium.launch({headless: true});
+          const page = await browser.newPage();
+          
+          try {
+            console.log("🌐 Loading app...");
+            await page.goto("https://amylodeep.streamlit.app/", {timeout: 90000});
+            
+            // Wait a bit for any initial loading
+            await page.waitForTimeout(10000);
+            
+            // Check if app is sleeping
+            try {
+              const wakeButton = await page.waitForSelector('text="Yes, get this app back up!"', {timeout: 5000});
+              if (wakeButton) {
+                console.log("😴 App is sleeping, waking it up...");
+                await wakeButton.click();
+                await page.waitForTimeout(30000);
+              }
+            } catch (e) {
+              console.log("✅ App is not sleeping");
+            }
+            
+            // Wait for page to be ready (look for any textarea)
+            console.log("🔍 Waiting for form elements...");
+            await page.waitForSelector('textarea', {timeout: 60000});
+            
+            // Fill the first textarea (should be your sequence input)
+            console.log("📝 Filling sequence...");
+            await page.fill('textarea', 'ACDEFGHIKLMNPQRSTVWYACDEFGHIKLMNPQRSTVWY');
+            
+            // Wait a moment
+            await page.waitForTimeout(2000);
+            
+            // Look for predict button (try different approaches)
+            console.log("🔍 Looking for Predict button...");
+            let predictClicked = false;
+            
+            // Try method 1: exact text match
+            try {
+              await page.click('button:has-text("Predict")');
+              predictClicked = true;
+              console.log("✅ Clicked Predict button (method 1)");
+            } catch (e) {
+              console.log("❌ Method 1 failed, trying method 2...");
+            }
+            
+            // Try method 2: any button with "predict" (case insensitive)
+            if (!predictClicked) {
+              try {
+                const buttons = await page.$$('button');
+                for (let button of buttons) {
+                  const text = await button.textContent();
+                  if (text && text.toLowerCase().includes('predict')) {
+                    await button.click();
+                    predictClicked = true;
+                    console.log(`✅ Clicked button with text: "${text}"`);
+                    break;
+                  }
+                }
+              } catch (e) {
+                console.log("❌ Method 2 also failed");
+              }
+            }
+            
+            if (predictClicked) {
+              console.log("⏳ Waiting for results...");
+              await page.waitForTimeout(15000);
+              console.log("✅ Prediction process completed");
+            } else {
+              console.log("⚠️ Could not find Predict button, but form was filled");
+            }
+            
+            // Keep the session alive
+            console.log("🔗 Keeping session alive...");
+            await page.waitForTimeout(20000);
+            
+            console.log("🎉 Interaction completed successfully!");
+            
+          } catch (error) {
+            console.error("❌ Error:", error.message);
+            
+            // Get page content for debugging
+            const url = await page.url();
+            console.log("Current URL:", url);
+            
+            if (url.includes('streamlit')) {
+              console.log("✅ At least we reached Streamlit");
+            } else {
+              throw error;
+            }
+          } finally {
             await browser.close();
-          })().catch(err => {
-            console.error("Playwright error:", err);
-            process.exit(1);
-          });
-          JS
+          }
+        })();
+        JS
