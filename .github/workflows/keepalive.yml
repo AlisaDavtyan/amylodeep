@@ -1,7 +1,7 @@
 name: AmyloDeep Keep-Alive
 on:
   schedule:
-    - cron: "*/50 * * * *"   # Every 15 minutes (fixed cron syntax)
+    - cron: "*/15 * * * *"   # Every 15 minutes (fixed cron syntax)
   workflow_dispatch:
 jobs:
   keep-alive:
