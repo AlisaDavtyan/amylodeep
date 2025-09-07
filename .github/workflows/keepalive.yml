@@ -1,46 +1,58 @@
-name: AmyloDeep Keep-Alive (Lightweight)
+name: AmyloDeep Keep-Alive
 on:
   schedule:
+    # every 15 minutes (tweak to /10 for every 10 minutes)
     - cron: "*/50 * * * *"
   workflow_dispatch:
-
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     concurrency:
       group: amylodeep-keepalive
       cancel-in-progress: false
-    
     steps:
-      - name: Keep Streamlit app alive
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Playwright
         run: |
-          APP_URL="https://amylodeep.streamlit.app/?skip_splash=1"
-          echo "🚀 Pinging $APP_URL"
-          
-          # Make initial request to wake up the app
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-            --connect-timeout 30 \
-            --max-time 60 \
-            "$APP_URL")
-          
-          echo "📡 Initial response: $response"
-          
-          if [ "$response" = "200" ] || [ "$response" = "302" ]; then
-            echo "✅ App is responding"
-            
-            # Wait a bit and ping again to ensure session stays active
-            sleep 10
-            
-            response2=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
-              --connect-timeout 15 \
-              --max-time 30 \
-              "$APP_URL")
-            
-            echo "🔄 Second response: $response2"
-            echo "✅ Keep-alive completed successfully"
-          else
-            echo "⚠️ App returned $response but keep-alive attempted"
-          fi
+          npm init -y
+          npm i playwright@1
+          npx playwright install --with-deps chromium
+      - name: Create keepalive script
+        run: |
+          cat > keepalive.js <<'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const url = process.env.APP_URL || "https://amylodeep.streamlit.app/?keepalive=1";
+            const browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext({
+              userAgent:
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
+              viewport: { width: 1280, height: 800 }
+            });
+            const page = await context.newPage();
+            // Navigate and wait for network to go mostly idle
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
+            // Streamlit opens a websocket; wait for it to appear and settle.
+            // A simple heuristic: wait for any "streamlit" JS to render and network quiet.
+            try {
+              await page.waitForLoadState("networkidle", { timeout: 60000 });
+            } catch (e) {
+              // ignore – some apps continuously poll; the session likely already started
+            }
+            // Keep the session alive for ~40s so the backend fully spins up
+            await page.waitForTimeout(40000);
+            await browser.close();
+            console.log("✅ Keep-alive visit completed");
+          })().catch(err => {
+            console.error("❌ Keep-alive failed:", err);
+            process.exit(1);
+          });
+          EOF
+      - name: Run keepalive
+        env:
+          APP_URL: https://amylodeep.streamlit.app/?skip_splash=1
+        run: node keepalive.js
