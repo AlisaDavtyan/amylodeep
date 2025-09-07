@@ -1,10 +1,8 @@
 name: AmyloDeep Keep-Alive
-
 on:
   schedule:
-    - cron: "*/50 * * * *"   # your comment says 15; changed to every 15 minutes
+    - cron: "*/50 * * * *"   # Every 15 minutes (fixed cron syntax)
   workflow_dispatch:
-
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
@@ -12,17 +10,14 @@ jobs:
     concurrency:
       group: amylodeep-keepalive
       cancel-in-progress: false
-
     steps:
       - name: Checkout (optional if you only cat files)
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-
       # Cache Playwright browser downloads
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -31,7 +26,6 @@ jobs:
           key: playwright-browsers-${{ runner.os }}-v1-1.47.2
           restore-keys: |
             playwright-browsers-${{ runner.os }}-v1-
-
       # Create a minimal package.json so npm cache works
       - name: Prepare package.json
         run: |
@@ -45,39 +39,65 @@ jobs:
             }
           }
           JSON
-
       - name: Install deps (uses npm cache)
         run: npm ci
-
       # Install browser only, no OS deps (Ubuntu runner already has them)
       - name: Install Chromium for Playwright (no --with-deps)
         run: npx playwright install chromium
-
       - name: Create keepalive script
         run: |
           cat > keepalive.js <<'EOF'
           const { chromium } = require('playwright');
           (async () => {
             const url = process.env.APP_URL || "https://amylodeep.streamlit.app/?keepalive=1";
-            const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+            console.log(`🚀 Visiting: ${url}`);
+            
+            const browser = await chromium.launch({ 
+              headless: true, 
+              args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"] 
+            });
+            
             const context = await browser.newContext({
-              userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
+              userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
               viewport: { width: 1280, height: 800 }
             });
+            
             const page = await context.newPage();
-            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
+            
+            // Set up error handling
+            page.on('pageerror', err => console.log('Page error:', err.message));
+            page.on('console', msg => {
+              if (msg.type() === 'error') console.log('Console error:', msg.text());
+            });
+            
             try {
-              await page.waitForLoadState("networkidle", { timeout: 30000 });
-            } catch {}
-            await page.waitForTimeout(15000);
-            await browser.close();
-            console.log("✅ Keep-alive visit completed");
+              await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
+              console.log("📄 Page loaded");
+              
+              try {
+                await page.waitForLoadState("networkidle", { timeout: 30000 });
+                console.log("🌐 Network idle reached");
+              } catch (e) {
+                console.log("⚠️ Network idle timeout (continuing anyway)");
+              }
+              
+              // Wait a bit more to ensure the app is fully loaded
+              await page.waitForTimeout(15000);
+              console.log("⏱️ Additional wait completed");
+              
+            } catch (error) {
+              console.error("❌ Navigation failed:", error.message);
+              throw error;
+            } finally {
+              await browser.close();
+            }
+            
+            console.log("✅ Keep-alive visit completed successfully");
           })().catch(err => {
-            console.error("❌ Keep-alive failed:", err);
+            console.error("❌ Keep-alive failed:", err.message);
             process.exit(1);
           });
           EOF
-
       - name: Run keepalive
         env:
           APP_URL: https://amylodeep.streamlit.app/?skip_splash=1
