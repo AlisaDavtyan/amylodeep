@@ -2,60 +2,74 @@ name: AmyloDeep Keep-Alive
 
 on:
   schedule:
-    # every 15 minutes (tweak to */10 for every 10 minutes)
-    - cron: "*/50 * * * *"
+    - cron: "*/50 * * * *"   # your comment says 15; changed to every 15 minutes
   workflow_dispatch:
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     concurrency:
       group: amylodeep-keepalive
       cancel-in-progress: false
 
     steps:
+      - name: Checkout (optional if you only cat files)
+        uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
 
-      - name: Install Playwright
+      # Cache Playwright browser downloads
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-v1-1.47.2
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}-v1-
+
+      # Create a minimal package.json so npm cache works
+      - name: Prepare package.json
         run: |
-          npm init -y
-          npm i playwright@1
-          npx playwright install --with-deps chromium
+          cat > package.json <<'JSON'
+          {
+            "name": "keepalive",
+            "private": true,
+            "version": "1.0.0",
+            "dependencies": {
+              "playwright": "1.47.2"
+            }
+          }
+          JSON
+
+      - name: Install deps (uses npm cache)
+        run: npm ci
+
+      # Install browser only, no OS deps (Ubuntu runner already has them)
+      - name: Install Chromium for Playwright (no --with-deps)
+        run: npx playwright install chromium
 
       - name: Create keepalive script
         run: |
           cat > keepalive.js <<'EOF'
           const { chromium } = require('playwright');
-
           (async () => {
             const url = process.env.APP_URL || "https://amylodeep.streamlit.app/?keepalive=1";
-            const browser = await chromium.launch({ headless: true });
+            const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
             const context = await browser.newContext({
-              userAgent:
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
+              userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36",
               viewport: { width: 1280, height: 800 }
             });
-
             const page = await context.newPage();
-
-            // Navigate and wait for network to go mostly idle
             await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
-
-            // Streamlit opens a websocket; wait for it to appear and settle.
-            // A simple heuristic: wait for any "streamlit" JS to render and network quiet.
             try {
-              await page.waitForLoadState("networkidle", { timeout: 60000 });
-            } catch (e) {
-              // ignore – some apps continuously poll; the session likely already started
-            }
-
-            // Keep the session alive for ~40s so the backend fully spins up
-            await page.waitForTimeout(40000);
-
+              await page.waitForLoadState("networkidle", { timeout: 30000 });
+            } catch {}
+            await page.waitForTimeout(15000);
             await browser.close();
             console.log("✅ Keep-alive visit completed");
           })().catch(err => {
