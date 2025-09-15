@@ -88,12 +88,16 @@ st.markdown(
 
 # Intro
 st.markdown(
-    "<h5 style='text-align: center; margin-top: 15px; margin-bottom: 20px;'>"
-    "Deep learning-based model for predicting amyloid propensity from the amino acid sequence.<br/>"
-    "To access full ensemble model follow source ."
-    "</h5>",
+    """
+    <h5 style='text-align: center; margin-top: 15px; margin-bottom: 20px;'>
+        pLM-based model for predicting amyloid propensity from the amino acid sequence.<br/>
+        To access full ensemble model follow 
+        <a href="https://pypi.org/project/amylodeep/" target="_blank">source</a>.
+    </h5>
+    """,
     unsafe_allow_html=True
 )
+
 
 # FASTA Parser
 def parse_fasta(fasta_text):
