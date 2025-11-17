@@ -129,7 +129,7 @@ st.markdown(
         <a href="?" target="_self" style="text-decoration: none;"><div class="logo">AmyloDeep</div></a>
         <div class="nav-links">
             <a href="?page=model" target="_self">Model</a>
-            <a href="?page=contact" target="_self">Contact</a>
+            <a href="?page=contact" target="_self">Contact us</a>
         </div>
     </div>
     """,
