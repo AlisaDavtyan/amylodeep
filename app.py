@@ -3,11 +3,17 @@ import matplotlib.pyplot as plt
 import time
 import numpy as np
 import pandas as pd
-from prediction import  RollingWindowPredictor
+from prediction import RollingWindowPredictor
 from utils import load_models_and_calibrators
 
 # Page setup
 st.set_page_config(page_title="Amyloid Sequence Classifier", layout="wide")
+
+# Check if we're on the model info page
+query_params = st.query_params
+active_page = query_params.get("page", "main")
+show_model_info = active_page == "model"
+show_contact_info = active_page == "contact"
 
 # Custom header and styling
 st.markdown(
@@ -34,12 +40,14 @@ st.markdown(
         font-size: 32px;
         font-weight: 700;
         color: #1a355e;
+        cursor: pointer;
     }
     .custom-header .nav-links a {
         margin-left: 25px;
         text-decoration: none;
         font-size: 22px;
         color: #1a355e;
+        cursor: pointer;
     }
     .custom-header .nav-links a:hover {
         text-decoration: underline;
@@ -72,34 +80,142 @@ st.markdown(
         font-weight: bold !important;
         font-family: 'Arial', sans-serif !important;
     }
+    
+    .model-info-section {
+        background-color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin: 20px auto;
+        max-width: 1000px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .model-info-section h1 {
+        color: #1a355e;
+        font-size: 28px;
+        margin-bottom: 20px;
+    }
+    
+    .model-info-section h2 {
+        color: #1a355e;
+        font-size: 22px;
+        margin-top: 25px;
+        margin-bottom: 15px;
+    }
+    
+    .model-info-section p {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #333;
+    }
+    
+    .model-info-section ul {
+        font-size: 16px;
+        line-height: 1.8;
+        color: #333;
+    }
+    
+    .model-info-section a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+    
+    .model-info-section a:hover {
+        text-decoration: underline;
+    }
     </style>
     <div class="custom-header">
-        <div class="logo">AmyloDeep</div>
+        <a href="?" style="text-decoration: none;"><div class="logo">AmyloDeep</div></a>
         <div class="nav-links">
-            <a href="#model">Model</a>
-            <a href="#datasource">Datasource</a>
-            <a href="#researchers">Researchers</a>
-            <a href="#contact">Contact</a>
+            <a href="?page=model">Model</a>
+            <a href="?page=contact">Contact</a>
         </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# Intro
-st.markdown(
-    """
-    <h5 style='text-align: center; margin-top: 15px; margin-bottom: 20px;'>
-        pLM-based model for predicting amyloid propensity from the amino acid sequence.<br/>
-        To access full ensemble model follow 
-        <a href="https://pypi.org/project/amylodeep/" target="_blank">source</a>.
-    </h5>
-    """,
-    unsafe_allow_html=True
-)
+# Show Model Info Page or Main App
+if show_model_info:
+    # Model Information Page
+    st.markdown(
+        """
+        <div class="model-info-section" style="font-size:18px;">
+        <h1>🧬 AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence</h1>
+        <p style="text-align: justify;">
+        This tool predicts the amyloid-forming propensity of protein sequences using 
+        transformer-based protein embeddings. Amyloids are β-sheet-rich, stable structures that play roles 
+        in both critical biological functions (like memory and immunity) and serious diseases such as 
+        Alzheimer's, Parkinson's, and Huntington's.
+        Amyloids are predominantly β-sheet-rich, stable protein structures that can maintain their presence in the human body
+        for multiple years. Amyloid protein aggregates contribute to the development of multiple neurodegenerative diseases, 
+        such as Alzheimer’s, Parkinson’s, and Huntington’s, and are involved in different vital functions, such as memory 
+        formation and immune system function. Here, we used advanced machine learning and deep learning techniques to predict 
+        amyloid propensity from the amino acid sequence. First, we aggregated labeled amino acid sequence data from multiple
+        sources, obtaining a roughly balanced dataset of 2366 sequences for binary classification. We leveraged that data to 
+        both fine-tune the ESM2 model and to train new models based on protein embeddings from ESM2 and UniRep.
+        The predictions from these models were then unified into a single soft voting ensemble model, yielding highly
+        robust and accurate results. We further made a tool where users can provide the amino acid sequence and get
+        the amyloid formation probabilities of different segments of the input sequence. 
+        </p>
+ 
+        <p>
+        AmyloDeep provides reliable predictions of amyloidogenic regions directly from the amino acid sequence.
+        </p>
+            
+        <h2>🔗 Try It</h2>
+        <ul>
+        <strong>Package</strong>: the full model is available as a Python package at 
+        <a href="https://pypi.org/project/amylodeep/" target="_blank">https://pypi.org/project/amylodeep/</a>
+        </ul>
+            
+        <h2>📄 Read Full Article</h2>
+        <p>
+        For detailed information about the methodology and research behind AmyloDeep, read the full article:
+        <br/>
+        <a href="https://www.biorxiv.org/content/10.1101/2025.09.16.676495v1.full" target="_blank">
+        https://www.biorxiv.org/content/10.1101/2025.09.16.676495v1.full
+        </a>
+        </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.stop() 
 
 
-# FASTA Parser
+if show_contact_info:
+    st.markdown(
+        """
+        <div class="model-info-section" style="font-size:17px;">
+        <h1>📬 Contact</h1>
+        <p>
+        <strong>Authors & Correspondence:</strong><br>
+        📧 Alisa Davtyan - <a href="mailto:alisadavtyan7@gmail.com">alisadavtyan7@gmail.com</a><br>
+        📧 Anahit Khachatryan - <a href="mailto:xachatryan96an@gmail.com">xachatryan96an@gmail.com</a><br>
+        📧 Rafayel Petrosyan - <a href="mailto:rafayel.petrosyan@aua.am">rafayel.petrosyan@aua.am</a>
+        </p>
+        <h2>📄 Citation</h2>
+        <p>
+        Davtyan, A., Khachatryan, A., & Petrosyan, R. (2025, September 18). AmyloDeep: pLM-based ensemble model for predicting
+        amyloid propensity from the amino acid sequence (Preprint). bioRxiv. <a href="https://doi.org/10.1101/2025.09.16.676495" target="_blank">https://doi.org/10.1101/2025.09.16.676495</a>
+        </p>
+        <br/>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.stop()
+
+st.markdown("""
+<h5 style='text-align:center; margin-top:15px; margin-bottom:20px;'>
+    pLM-based model for predicting amyloid propensity from amino acid sequence.
+    <br/> Full ensemble model: 
+    <a href="https://pypi.org/project/amylodeep/" target="_blank">source</a>
+</h5>
+""", unsafe_allow_html=True)
+
+    # FASTA Parser
 def parse_fasta(fasta_text):
     lines = fasta_text.strip().split('\n')
     return ''.join(line.strip() for line in lines if not line.startswith(">"))
@@ -135,9 +251,6 @@ with left_col:
 
 # Load predictor
 @st.cache_resource(show_spinner=False)
-# def get_predictor():
-#     model, calibrator= load_models_and_calibrators()
-#     return RollingWindowPredictor(model, calibrator)
 def get_predictor():
     try:
         model, calibrator = load_models_and_calibrators()
@@ -160,9 +273,7 @@ if predict_btn and sequence_input:
         end_time = time.time()
 
         with right_col:
-            # st.markdown(f"**⏱ Sequence:**")
             st.markdown(f"<h4 style='font-size: 18px;'>{sequence}</h4>", unsafe_allow_html=True)
-            # st.markdown("<h5 style='text-align: center;'>Window-wise Amyloidogenicity probability plot using AmyloDee</h5>", unsafe_allow_html=True)
 
             positions, probs = zip(*result['position_probs'])
             x = np.arange(0, len(sequence) - window_size + 1)
@@ -175,27 +286,17 @@ if predict_btn and sequence_input:
             ax.set_ylabel("Probability", fontsize=12)
             ax.set_xlabel("Residue", fontsize=12)
             L = len(sequence)
-            # ax.set_xlim(-1, len(sequence))
             ax.set_xlim(-1, L - window_size + 1)
 
             if L < 100:
                 ax.set_xticks(np.arange(0, L+1, 5))
             else:
-                # labels at residues [0, L/5, 2L/5, ..., L]
                 step = int(np.ceil(L/5/10) * 10)
                 tick_labels = np.arange(0, L+1, step)
-
-                # convert those residue labels to bar x-positions (window starts)
-                # last label "L" maps to the last window start at L - window_size
                 tick_positions = np.minimum(tick_labels, L - window_size)
-
                 ax.set_xticks(tick_positions)
                 ax.set_xticklabels([str(t) for t in tick_labels])
-            # ax.set_ylim(0, 1)
-            # if len(sequence) < 100:
-            #     ax.set_xticks(np.arange(0, len(sequence),5))
-            # else:
-            #     ax.set_xticks(np.arange(0, len(sequence),50))
+
             ax.axhline(y=0.5, color='green', linestyle='--', alpha=0.7)
             ax.axhline(y=0.8, color='red', linestyle='--', alpha=0.7)
             ax.tick_params(axis='both', labelsize=12)
@@ -204,10 +305,8 @@ if predict_btn and sequence_input:
 
             st.markdown("<h5 style='text-align: center;'>Position-wise Probabilities</h5>", unsafe_allow_html=True)
             df = pd.DataFrame({
-                # "start": [pos for pos, _ in result["position_probs"]],
                 "sequence": result["windows"],
                 "probability": [p for _, p in result["position_probs"]]
             })
-
 
             st.dataframe(df.style.format({"Probability": "{:.3f}"}), use_container_width=True)
