@@ -124,11 +124,12 @@ st.markdown(
         text-decoration: underline;
     }
     </style>
+    
     <div class="custom-header">
-        <a href="?" style="text-decoration: none;"><div class="logo">AmyloDeep</div></a>
+        <a href="?" target="_self" style="text-decoration: none;"><div class="logo">AmyloDeep</div></a>
         <div class="nav-links">
-            <a href="?page=model">Model</a>
-            <a href="?page=contact">Contact</a>
+            <a href="?page=model" target="_self">Model</a>
+            <a href="?page=contact" target="_self">Contact</a>
         </div>
     </div>
     """,
