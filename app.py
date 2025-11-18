@@ -198,8 +198,8 @@ if show_contact_info:
         </p>
         <h2>📄 Citation</h2>
         <p>
-        Davtyan, A., Khachatryan, A., & Petrosyan, R. (2025, September 18). AmyloDeep: pLM-based ensemble model for predicting
-        amyloid propensity from the amino acid sequence (Preprint). bioRxiv. <a href="https://doi.org/10.1101/2025.09.16.676495" target="_blank">https://doi.org/10.1101/2025.09.16.676495</a>
+        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2025 bioRxiv 
+        doi: <a href="https://doi.org/10.1101/2025.09.16.676495" target="_blank">https://doi.org/10.1101/2025.09.16.676495</a>
         </p>
         <br/>
         </div>
@@ -247,6 +247,19 @@ with left_col:
         # Rolling window slider
         window_size = st.slider("Rolling window size:", min_value=3, max_value=30, value=10, step=1, key="window_slider")
         predict_btn = st.form_submit_button("Predict")
+
+    # Citation (outside the form)
+    st.markdown(
+        """
+        <div style='font-size:15px; color:#666666; margin-top: 15px; line-height: 1.4;'>
+        <strong>Citation:</strong><br>
+        <p style="text-align: justify;">
+        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2025 bioRxiv<br>
+        doi: <a href="https://doi.org/10.1101/2025.09.16.676495" target="_blank" style="color:#0066cc;">https://doi.org/10.1101/2025.09.16.676495</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 
@@ -311,3 +324,4 @@ if predict_btn and sequence_input:
             })
 
             st.dataframe(df.style.format({"Probability": "{:.3f}"}), use_container_width=True)
+    
