@@ -10,3 +10,6 @@ AmyloDeep provides reliable predictions of amyloidogenic regions directly from t
 - **App**: (https://amylodeep.com) - light version
 
 - **Package**: the full model is available as a Python package at https://pypi.org/project/amylodeep/.
+
+- **Article**: A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2025 bioRxiv
+doi: https://doi.org/10.1101/2025.09.16.676495 
