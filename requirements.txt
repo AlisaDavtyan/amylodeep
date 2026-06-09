@@ -10,3 +10,4 @@ matplotlib
 wandb
 accelerate
 huggingface-hub
+networkx<3.5

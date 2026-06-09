@@ -57,6 +57,9 @@ class UniRepClassifierConfig(PretrainedConfig):
 # --- UniRep Classifier Model ---
 class UniRepClassifier(PreTrainedModel):
     config_class = UniRepClassifierConfig
+    @property
+    def all_tied_weights_keys(self):
+        return {}
 
     def __init__(self, config):
         super().__init__(config)
