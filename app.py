@@ -9,12 +9,16 @@ import textwrap
 
 # Page setup
 st.set_page_config(page_title="Amyloid Sequence Classifier", layout="wide")
+import os
+
+
 
 # Check if we're on the model info page
 query_params = st.query_params
 active_page = query_params.get("page", "main")
 show_model_info = active_page == "model"
 show_contact_info = active_page == "contact"
+
 
 # Custom header and styling
 st.markdown(
@@ -138,7 +142,10 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
+if os.path.exists("OFFLINE.txt"):
+    st.set_page_config(page_title="AmyloDeep")
+    st.warning("App is currently offline. Check back later.")
+    st.stop()
 # Show Model Info Page
 if show_model_info:
     st.markdown(
@@ -338,9 +345,3 @@ if predict_btn:
             )
 
 
-import os
-
-if os.path.exists("OFFLINE.txt"):
-    st.set_page_config(page_title="AmyloDeep")
-    st.warning("App is currently offline. Check back later.")
-    st.stop()
