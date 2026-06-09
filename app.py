@@ -336,3 +336,11 @@ if predict_btn:
                   .set_properties(subset=["probability"], **{"text-align": "center"}),
                 use_container_width=True
             )
+
+
+import os
+
+if os.path.exists("OFFLINE.txt"):
+    st.set_page_config(page_title="AmyloDeep")
+    st.warning("App is currently offline. Check back later.")
+    st.stop()
