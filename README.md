@@ -6,7 +6,6 @@ AmyloDeep provides reliable predictions of amyloidogenic regions directly from t
 
 
 ## 🔗 Try It
-
 - **App**: (https://amylodeep.com) - light version
 
 - **Package**: the full model is available as a Python package at https://pypi.org/project/amylodeep/.

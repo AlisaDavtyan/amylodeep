@@ -9,7 +9,6 @@ class RollingWindowPredictor:
     def __init__(self, model, calibrator=None):
         """
         Initialize the UniRep predictor with optional calibration.
-
         Args:
             model: Trained PyTorch model that accepts UniRep embeddings
             calibrator: Optional sklearn-like calibrator for probability adjustment
