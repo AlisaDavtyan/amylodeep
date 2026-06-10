@@ -142,10 +142,10 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-if os.path.exists("OFFLINE.txt"):
-    st.set_page_config(page_title="AmyloDeep")
-    st.warning("App is currently offline. Check back later.")
-    st.stop()
+# if os.path.exists("OFFLINE.txt"):
+#     st.set_page_config(page_title="AmyloDeep")
+#     st.warning("App is currently offline. Check back later.")
+#     st.stop()
 # Show Model Info Page
 if show_model_info:
     st.markdown(
