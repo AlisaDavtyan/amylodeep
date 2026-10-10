@@ -204,8 +204,8 @@ if show_contact_info:
         </p>
         <h2>📄 Citation</h2>
         <p>
-        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2025 bioRxiv 
-        doi: <a href="https://doi.org/10.1101/2025.09.16.676495" target="_blank">https://doi.org/10.1101/2025.09.16.676495</a>
+        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2026 Oct Bioinformatics Advances 
+        doi: <a href="https://doi.org/10.1093/bioadv/vbag296" target="_blank">https://doi.org/10.1093/bioadv/vbag296</a>
         </p>
         <br/>
         </div>
