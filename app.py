@@ -204,7 +204,7 @@ if show_contact_info:
         </p>
         <h2>📄 Citation</h2>
         <p>
-        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2026 Oct Bioinformatics Advances 
+        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2026 Oct, Bioinformatics Advances 
         doi: <a href="https://doi.org/10.1093/bioadv/vbag296" target="_blank">https://doi.org/10.1093/bioadv/vbag296</a>
         </p>
         <br/>
@@ -262,7 +262,7 @@ with left_col:
         <div style='font-size:15px; color:#666666; margin-top: 15px; line-height: 1.4;'>
         <strong>Citation:</strong><br>
         <p style="text-align: justify;">
-        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2026 Oct Bioinformatics Advances <br>
+        A. Davtyan, A. Khachatryan, R. Petrosyan "AmyloDeep: pLM-based ensemble model for predicting amyloid propensity from the amino acid sequence", 2026 Oct, Bioinformatics Advances <br>
         doi: <a href="https://doi.org/10.1093/bioadv/vbag296" target="_blank" style="color:#0066cc;">https://doi.org/10.1093/bioadv/vbag296</a>
         </div>
         """,
